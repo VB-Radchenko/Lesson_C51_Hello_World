@@ -1,0 +1,78 @@
+C51 COMPILER V9.57.0.0   GPIO                                                              03/05/2023 11:39:29 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE GPIO
+OBJECT MODULE PLACED IN ..\OBJ\GPIO.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE ..\HANDWARE\GPIO\GPIO.c LARGE OMF2 OPTIMIZE(3,SIZE) BROWSE INCDIR(..\USE
+                    -R;..\FUNC_HANDLER;..\GUI_APP;..\HANDWARE\ADC;..\HANDWARE\GPIO;..\HANDWARE\PWM;..\HANDWARE\TIMER;..\HANDWARE\UART) DEBUG 
+                    -PRINT(..\OBJ\Listing\GPIO.lst) TABS(2) OBJECT(..\OBJ\GPIO.obj)
+
+line level    source
+
+   1          
+   2          //==============================================================================
+   3          //---------------------------------Includes-------------------------------------
+   4          //==============================================================================
+   5          #include "GPIO.h"
+   6          
+   7          //==============================================================================
+   8          //---------------------------------Defines--------------------------------------
+   9          //==============================================================================
+  10          
+  11          //==============================================================================
+  12          //---------------------------------- INIT---------------------------------------
+  13          //==============================================================================
+  14          
+  15          void SetPinOut(u8 Port,u8 Pin) 
+  16          {
+  17   1          switch(Port)
+  18   1          {
+  19   2              case 0: P0MDOUT|=(1<<Pin);
+  20   2                      break;
+  21   2              case 1: P1MDOUT|=(1<<Pin);
+  22   2                      break;
+  23   2              case 2: P2MDOUT|=(1<<Pin);
+  24   2                      break;
+  25   2              case 3: P3MDOUT|=(1<<Pin);
+  26   2                      break;  
+  27   2              default:break;        
+  28   2          } 
+  29   1      }
+  30          void SetPinIn(u8 Port,u8 Pin)
+  31          {
+  32   1          switch(Port)
+  33   1          {
+  34   2              case 0: P0MDOUT&=~(1<<Pin);
+  35   2                      break;
+  36   2              case 1: P1MDOUT&=~(1<<Pin);
+  37   2                      break;
+  38   2              case 2: P2MDOUT&=~(1<<Pin);
+  39   2                      break;
+  40   2              case 3: P3MDOUT&=~(1<<Pin);
+  41   2                      break;  
+  42   2              default:break;        
+  43   2          } 
+  44   1      }
+  45          //==============================================================================
+  46          //---------------------------------END FILE-------------------------------------
+  47          //==============================================================================
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    218    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----       4
+C51 COMPILER V9.57.0.0   GPIO                                                              03/05/2023 11:39:29 PAGE 2   
+
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

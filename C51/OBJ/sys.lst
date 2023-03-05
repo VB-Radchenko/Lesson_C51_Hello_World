@@ -1,0 +1,215 @@
+C51 COMPILER V9.57.0.0   SYS                                                               02/24/2023 21:51:30 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE SYS
+OBJECT MODULE PLACED IN ..\OBJ\out\sys.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE sys.c LARGE OMF2 OPTIMIZE(3,SIZE) BROWSE INCDIR(..\USER;..\FUNC_HANDLER;
+                    -..\GUI_APP;..\HANDWARE\ADC;..\HANDWARE\GPIO;..\HANDWARE\PWM;..\HANDWARE\TIMER;..\HANDWARE\UART) DEBUG PRINT(..\OBJ\sys.l
+                    -st) TABS(2) OBJECT(..\OBJ\out\sys.obj)
+
+line level    source
+
+   1          #include "sys.h"
+   2          
+   3          
+   4          static idata u16 delay_tick = 0; //用来实现精确延时的
+   5          
+   6          
+   7          
+   8          //核心寄存器初始化
+   9          void sys_cpu_init()
+  10          {
+  11   1        EA = 0;
+  12   1        RS0 = 0;
+  13   1        RS1 = 0;
+  14   1      
+  15   1        CKCON = 0x00;
+  16   1        T2CON = 0x70;
+  17   1        DPC = 0x00;
+  18   1        PAGESEL = 0x01;
+  19   1        D_PAGESEL = 0x02; //DATA RAM  0x8000-0xFFFF
+  20   1        MUX_SEL = 0x00;   //UART2,UART3关闭，WDT关闭
+  21   1        RAMMODE = 0x00;
+  22   1        PORTDRV = 0x01;   //驱动强度+/-8mA
+  23   1        IEN0 = 0x00;      //关闭所有中断
+  24   1        IEN1 = 0x00;
+  25   1        IEN2 = 0x00;
+  26   1        IP0 = 0x00;       //中断优先级默认
+  27   1        IP1 = 0x00;
+  28   1      
+  29   1        WDT_OFF();        //关闭开门狗
+  30   1      }
+  31          
+  32          
+  33          //定时器2初始化,定时间隔为1ms
+  34          void sys_timer2_init()
+  35          {
+  36   1        T2CON = 0x70;
+  37   1        TH2 = 0x00;
+  38   1        TL2 = 0x00;
+  39   1      
+  40   1        TRL2H = 0xBC; //1ms的定时器
+  41   1        TRL2L = 0xCD;       
+  42   1      
+  43   1        IEN0 |= 0x20; //启动定时器2
+  44   1        TR2 = 0x01;
+  45   1        EA = 1;
+  46   1      }
+  47          
+  48          
+  49          //系统初始化
+  50          void sys_init()
+  51          {
+  52   1        sys_cpu_init();//核心寄存器初始化
+  53   1        sys_timer2_init();//定时器2初始化
+C51 COMPILER V9.57.0.0   SYS                                                               02/24/2023 21:51:30 PAGE 2   
+
+  54   1      }
+  55          
+  56          
+  57          //软件大致延时,单位ms
+  58          //如果修改了优化等级,那么此函数内部的参数需要重新调试
+  59          void sys_delay_about_ms(u16 ms)
+  60          {
+  61   1        u16 i,j;
+  62   1        for(i=0;i<ms;i++)
+  63   1            for(j=0;j<3000;j++);    
+  64   1      }
+  65          
+  66          
+  67          //软件大致延时,单位us
+  68          //如果修改了优化等级,那么此函数内部的参数需要重新调试
+  69          void sys_delay_about_us(u8 us)
+  70          {
+  71   1        u8 i,j;
+  72   1        for(i=0;i<us;i++)
+  73   1            for(j=0;j<5;j++);    
+  74   1      }
+  75          
+  76          
+  77          //利用定时器2进行精确延时,单位ms
+  78          void sys_delay_ms(u16 ms)
+  79          {
+  80   1        delay_tick = ms;
+  81   1        while(delay_tick);
+  82   1      }
+  83          
+  84          
+  85          //读DGUS中的VP变量数据
+  86          //addr:就是直接传入DGUS中的地址
+  87          //buf:缓冲区
+  88          //len:读取的字数,一个字等于2个字节
+  89          void sys_read_vp(u16 addr,u8* buf,u16 len)
+  90          {   
+  91   1        u8 i; 
+  92   1        
+  93   1        i = (u8)(addr&0x01);
+  94   1        addr >>= 1;
+  95   1        ADR_H = 0x00;
+  96   1        ADR_M = (u8)(addr>>8);
+  97   1        ADR_L = (u8)addr;
+  98   1        ADR_INC = 0x01;
+  99   1        RAMMODE = 0xAF;
+ 100   1        while(APP_ACK==0);
+ 101   1        while(len>0)
+ 102   1        {   
+ 103   2          APP_EN=1;
+ 104   2          while(APP_EN==1);
+ 105   2          if((i==0)&&(len>0))   
+ 106   2          {   
+ 107   3            *buf++ = DATA3;
+ 108   3            *buf++ = DATA2;                      
+ 109   3            i = 1;
+ 110   3            len--;  
+ 111   3          }
+ 112   2          if((i==1)&&(len>0))   
+ 113   2          {   
+ 114   3            *buf++ = DATA1;
+ 115   3            *buf++ = DATA0;                      
+C51 COMPILER V9.57.0.0   SYS                                                               02/24/2023 21:51:30 PAGE 3   
+
+ 116   3            i = 0;
+ 117   3            len--;  
+ 118   3          }
+ 119   2        }
+ 120   1        RAMMODE = 0x00;
+ 121   1      }
+ 122          
+ 123          
+ 124          //写DGUS中的VP变量数据
+ 125          //addr:就是直接传入DGUS中的地址
+ 126          //buf:缓冲区
+ 127          //len:被发送数据的字数,一个字等于2个字节
+ 128          void sys_write_vp(u16 addr,u8* buf,u16 len)
+ 129          {   
+ 130   1        u8 i;  
+ 131   1        
+ 132   1        i = (u8)(addr&0x01);
+ 133   1        addr >>= 1;
+ 134   1        ADR_H = 0x00;
+ 135   1        ADR_M = (u8)(addr>>8);
+ 136   1        ADR_L = (u8)addr;    
+ 137   1        ADR_INC = 0x01;
+ 138   1        RAMMODE = 0x8F;
+ 139   1        while(APP_ACK==0);
+ 140   1        if(i && len>0)
+ 141   1        { 
+ 142   2          RAMMODE = 0x83; 
+ 143   2          DATA1 = *buf++;   
+ 144   2          DATA0 = *buf++; 
+ 145   2          APP_EN = 1;   
+ 146   2          len--;
+ 147   2        }
+ 148   1        RAMMODE = 0x8F;
+ 149   1        while(len>=2)
+ 150   1        { 
+ 151   2          DATA3 = *buf++;   
+ 152   2          DATA2 = *buf++;
+ 153   2          DATA1 = *buf++;   
+ 154   2          DATA0 = *buf++;
+ 155   2          APP_EN = 1;   
+ 156   2          len -= 2;
+ 157   2        }
+ 158   1        if(len)
+ 159   1        { 
+ 160   2          RAMMODE = 0x8C;
+ 161   2          DATA3 = *buf++;   
+ 162   2          DATA2 = *buf++;
+ 163   2          APP_EN = 1;
+ 164   2        }
+ 165   1        RAMMODE = 0x00;
+ 166   1      } 
+ 167          
+ 168          
+ 169          //定时器2中断服务程序
+ 170          void sys_timer2_isr() interrupt 5
+ 171          {
+ 172   1        TF2=0;//清除定时器2的中断标志位
+ 173   1        
+ 174   1        //精准延时处理
+ 175   1        if(delay_tick)
+ 176   1          delay_tick--;
+ 177   1      }
+C51 COMPILER V9.57.0.0   SYS                                                               02/24/2023 21:51:30 PAGE 4   
+
+ 178          
+ 179          
+ 180          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    791    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----      27
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =      2    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

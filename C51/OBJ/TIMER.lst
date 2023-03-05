@@ -1,0 +1,71 @@
+C51 COMPILER V9.57.0.0   TIMER                                                             02/24/2023 21:51:31 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE TIMER
+OBJECT MODULE PLACED IN ..\OBJ\out\TIMER.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE ..\HANDWARE\TIMER\TIMER.c LARGE OMF2 OPTIMIZE(3,SIZE) BROWSE INCDIR(..\U
+                    -SER;..\FUNC_HANDLER;..\GUI_APP;..\HANDWARE\ADC;..\HANDWARE\GPIO;..\HANDWARE\PWM;..\HANDWARE\TIMER;..\HANDWARE\UART) DEBU
+                    -G PRINT(..\OBJ\TIMER.lst) TABS(2) OBJECT(..\OBJ\out\TIMER.obj)
+
+line level    source
+
+   1          
+   2          //==============================================================================
+   3          //---------------------------------Includes-------------------------------------
+   4          //==============================================================================
+   5          
+   6          #include "TIMER.h"
+   7          
+   8          
+   9          //==============================================================================
+  10          //---------------------------------Defines--------------------------------------
+  11          //==============================================================================
+  12          
+  13          #define T0_PERIOD_1MS   0xBCCD    //1ms timing period
+  14          
+  15          
+  16          //==============================================================================
+  17          //---------------------------------- INIT---------------------------------------
+  18          //==============================================================================
+  19          void TimerInit()
+  20          {
+  21   1        //16-bit timer working mode
+  22   1        TMOD &= 0xFC;
+  23   1        TMOD |= 0x01;
+  24   1        //Timing period is 1ms
+  25   1        TH0 = (u8)(T0_PERIOD_1MS>>8); 
+  26   1        TL0 = (u8)T0_PERIOD_1MS;
+  27   1        ET0 = 1;//Enable timer 0 Interrupt
+  28   1        EA = 1;//Enable total interrupt
+  29   1        TR0 = 1;//Start timer 0
+  30   1      }
+  31          
+  32          
+  33          //==============================================================================
+  34          //--------------------------------FUNCTIONS-------------------------------------
+  35          //==============================================================================
+  36          
+  37          
+  38          //==============================================================================
+  39          //---------------------------------END FILE-------------------------------------
+  40          //==============================================================================
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     19    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+C51 COMPILER V9.57.0.0   TIMER                                                             02/24/2023 21:51:31 PAGE 2   
+
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

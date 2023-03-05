@@ -1,0 +1,106 @@
+C51 COMPILER V9.57.0.0   ADC                                                               02/24/2023 21:51:30 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE ADC
+OBJECT MODULE PLACED IN ..\OBJ\out\ADC.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE ..\HANDWARE\ADC\ADC.c LARGE OMF2 OPTIMIZE(3,SIZE) BROWSE INCDIR(..\USER;
+                    -..\FUNC_HANDLER;..\GUI_APP;..\HANDWARE\ADC;..\HANDWARE\GPIO;..\HANDWARE\PWM;..\HANDWARE\TIMER;..\HANDWARE\UART) DEBUG PR
+                    -INT(..\OBJ\ADC.lst) TABS(2) OBJECT(..\OBJ\out\ADC.obj)
+
+line level    source
+
+   1          //==============================================================================
+   2          //---------------------------------Includes-------------------------------------
+   3          //==============================================================================
+   4          #include "ADC.h"
+   5          
+   6          //==============================================================================
+   7          //---------------------------------Defines--------------------------------------
+   8          //==============================================================================
+   9          
+  10          #define ADC_START_ADDR    0x32
+  11          
+  12          //==============================================================================
+  13          //---------------------------------ADC READ-------------------------------------
+  14          //==============================================================================
+  15          //channel:0-7
+  16          u16 AdcRead(u16 channel)
+  17          {
+  18   1        sys_read_vp(ADC_START_ADDR+channel,(u8*)&channel,1);
+  19   1        
+  20   1        return channel;
+  21   1      }
+  22          
+  23          
+  24          
+  25          //==============================================================================
+  26          //-----------------------------ADC READ AVERAGE---------------------------------
+  27          //==============================================================================
+  28          u16 AdcReadAvg(u16 channel,u16 avg_cnt)
+  29          {
+  30   1        u16 cnt;
+  31   1        u16 ad;
+  32   1        u16 max_ad = 0;
+  33   1        u16 min_ad = 0xFFFF;
+  34   1        float ad_sum = 0;
+  35   1        
+  36   1        for(cnt=0;cnt<avg_cnt;cnt++)
+  37   1        {
+  38   2          sys_delay_ms(100);
+  39   2      
+  40   2          ad = AdcRead(channel);
+  41   2          ad_sum += ad;
+  42   2          if(ad>max_ad)
+  43   2            max_ad = ad;
+  44   2          if(ad<min_ad)
+  45   2            min_ad = ad;
+  46   2        }
+  47   1        if(avg_cnt>2)
+  48   1        {
+  49   2          ad_sum = ad_sum-max_ad-min_ad;
+  50   2          avg_cnt -= 2;
+  51   2        }
+  52   1        ad = (u16)(ad_sum/avg_cnt+0.5f);
+  53   1        
+C51 COMPILER V9.57.0.0   ADC                                                               02/24/2023 21:51:30 PAGE 2   
+
+  54   1        return ad;
+  55   1      }
+  56          
+  57          
+  58          
+  59          
+  60          //==============================================================================
+  61          //---------------------------------END FILE-------------------------------------
+  62          //==============================================================================
+  63          
+  64          
+  65          
+  66          
+  67          
+  68          
+  69          
+  70          
+  71          
+  72          
+  73          
+  74          
+  75          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    431    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----      18
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

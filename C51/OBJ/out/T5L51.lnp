@@ -1,0 +1,12 @@
+"..\OBJ\out\STARTUP_M5.obj",
+"..\OBJ\out\main.obj",
+"..\OBJ\out\sys.obj",
+"..\OBJ\out\ADC.obj",
+"..\OBJ\out\GPIO.obj",
+"..\OBJ\out\PWM.obj",
+"..\OBJ\out\TIMER.obj",
+"..\OBJ\out\uart.obj" 
+TO "..\OBJ\out\T5L51" 
+
+PRINT("..\OBJ\Listing\T5L51.map") REMOVEUNUSED 
+CLASSES (XDATA (X:0x8000-X:0xFFFF), HDATA (X:0x8000-X:0xFFFF)) 

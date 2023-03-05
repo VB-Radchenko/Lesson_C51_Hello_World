@@ -1,0 +1,77 @@
+C51 COMPILER V9.57.0.0   PWM                                                               02/24/2023 21:51:30 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE PWM
+OBJECT MODULE PLACED IN ..\OBJ\out\PWM.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE ..\HANDWARE\PWM\PWM.c LARGE OMF2 OPTIMIZE(3,SIZE) BROWSE INCDIR(..\USER;
+                    -..\FUNC_HANDLER;..\GUI_APP;..\HANDWARE\ADC;..\HANDWARE\GPIO;..\HANDWARE\PWM;..\HANDWARE\TIMER;..\HANDWARE\UART) DEBUG PR
+                    -INT(..\OBJ\PWM.lst) TABS(2) OBJECT(..\OBJ\out\PWM.obj)
+
+line level    source
+
+   1          
+   2          //==============================================================================
+   3          //---------------------------------Includes-------------------------------------
+   4          //==============================================================================
+   5          #include "PWM.h"
+   6          
+   7          
+   8          //==============================================================================
+   9          //---------------------------------Defines--------------------------------------
+  10          //==============================================================================
+  11          
+  12          #define PWM_ACCURACY      100
+  13          
+  14          
+  15          //==============================================================================
+  16          //---------------------------------- INIT---------------------------------------
+  17          //==============================================================================
+  18          void PwmInit(u8 freq)
+  19          {
+  20   1        #define PWM0_SET_ADDR     0x86
+  21   1        u8 buff[4] = {0x5A,0x01,(u8)(PWM_ACCURACY>>8),(u8)PWM_ACCURACY};
+  22   1        
+  23   1        buff[1] = freq;
+  24   1        sys_write_vp(PWM0_SET_ADDR,buff,2);
+  25   1        PwmSetDuty(0);
+  26   1      }
+  27          
+  28          
+  29          //==============================================================================
+  30          //--------------------------------FUNCTIONS-------------------------------------
+  31          //==============================================================================
+  32          void PwmSetDuty(u16 duty)
+  33          {
+  34   1        #define PWM0_OUT_ADDR     0x92
+  35   1        
+  36   1        if(duty>100)
+  37   1          duty = 100;
+  38   1        
+  39   1        duty = (u16)((float)duty/100.0f*PWM_ACCURACY+0.5f);
+  40   1        sys_write_vp(PWM0_OUT_ADDR,(u8*)&duty,1);
+  41   1      }
+  42          
+  43          
+  44          //==============================================================================
+  45          //---------------------------------END FILE-------------------------------------
+  46          //==============================================================================
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    167    ----
+   CONSTANT SIZE    =      4    ----
+   XDATA SIZE       =   ----       7
+   PDATA SIZE       =   ----    ----
+C51 COMPILER V9.57.0.0   PWM                                                               02/24/2023 21:51:30 PAGE 2   
+
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,544 @@
+C51 COMPILER V9.57.0.0   UART                                                              03/05/2023 11:39:29 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE UART
+OBJECT MODULE PLACED IN ..\OBJ\uart.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE ..\HANDWARE\UART\uart.c LARGE OMF2 OPTIMIZE(3,SIZE) BROWSE INCDIR(..\USE
+                    -R;..\FUNC_HANDLER;..\GUI_APP;..\HANDWARE\ADC;..\HANDWARE\GPIO;..\HANDWARE\PWM;..\HANDWARE\TIMER;..\HANDWARE\UART) DEBUG 
+                    -PRINT(..\OBJ\Listing\uart.lst) TABS(2) OBJECT(..\OBJ\uart.obj)
+
+line level    source
+
+   1          
+   2          #include "sys.h"
+   3          #include "T5LOS8051.h"
+   4          #include "uart.h"
+   5          #include "GPIO.h"
+   6          #include "timer.h"
+   7          #include "stdio.h"
+   8          #include "string.h"
+   9          
+  10          
+  11          
+  12          
+  13          
+  14          //È«¾Ö±äÁ¿¶¨Òå
+  15          Typdef_Uart uart[6];
+  16          u8  uart_txAck[6] = {0x5A, 0xA5, 0x03, 0x82, 0x4F, 0x4B };
+  17          u8 xdata uart_txBuf[255] = {0x5A, 0xA5, 0x00, 0x83, 0x4F, 0x4B};
+  18          u8 xdata uart_busy=0;
+  19          u8 xdata UART2_message[9]={0x5A,0xA5,0x06,0x83,0x25,0x00,0x01,0x00,0x00};
+  20          
+  21          
+  22          /*CRCÐ£Ñé*/
+  23          u16 crc16(u8 *dat, u16 length)  
+  24          {  
+  25   1          u8 i;  
+  26   1          u16 crc = 0xffff;        // Initial value  
+  27   1          while(length--)  
+  28   1          {  
+  29   2              crc ^= *dat++;            // crc ^= *dat; dat++;  
+  30   2              for (i = 0; i < 8; ++i)  
+  31   2              {  
+  32   3                  if (crc & 1)  
+  33   3                      crc = (crc >> 1) ^ 0xA001;        // 0xA001 = reverse 0x8005  
+  34   3                  else  
+  35   3                      crc = (crc >> 1);  
+  36   3              }
+  37   2          }
+  38   1          return crc;  
+  39   1      }
+  40          /*±È½ÏÁ½¸ö×Ö·û´®²¢¸ù¾Ý±È½Ï½á¹û·µ»ØÕû
+  41          str1=str2£¬Ôò·µ»ØÁã£»²»µÈÔò·µ»ØÕýÊý*/
+  42          u8 strcmp_qiao( u8 *str1, u8 *str2,u8 Num)
+  43          {
+  44   1        u8 ret=0 ,i = 0;
+  45   1        for(i=0;i<Num;i++)
+  46   1        {
+  47   2            if(*(str1+i)!= *(str2+i))
+  48   2            {
+  49   3              ret++;
+  50   3            }
+  51   2        }
+  52   1        return ret;
+  53   1      }
+C51 COMPILER V9.57.0.0   UART                                                              03/05/2023 11:39:29 PAGE 2   
+
+  54          
+  55          
+  56           /**
+  57             ´®¿Ú2³õÊ¼»¯
+  58              */
+  59          void UART2_Init(u32 bdt)
+  60          {
+  61   1        u16 tmp;  
+  62   1        tmp=1024-FOSC/64/bdt;   
+  63   1        MUX_SEL    |= 0x40; //¸´ÓÃÑ¡Ôñ¿Ú£¬ Ñ¡Ôñ¸´ÓÃÎªUART2£¬ ½Ó¿ÚÒý³öµ½ P0.4¡¢P0.5
+  64   1      
+  65   1        SetPinOut(GPIO_PORT_0,GPIO_PIN_4);
+  66   1        SetPinIn(GPIO_PORT_0,GPIO_PIN_5);
+  67   1        
+  68   1        SCON2 = 0x50; //0011 0000 ,¼´½«SM2£¬RENÖÃ1,SM2£ºÖ»ÓÐµ±½ÓÊÕµ½µÚ9Î»Êý¾Ý£¨RB8£©Îª1Ê±£¬²Å°Ñ½ÓÊÕµ½µÄÇ°8Î»Êý¾ÝË
+             -ÍÈëSBUF£¬ÇÒÖÃÎ»RI ·¢³öÖÐ¶ÏÉêÇë £¬¼´·¢ËÍ·½Ê½Îª8N1   £¬
+  69   1        ADCON = 0x80; //²¨ÌØÂÊ·¢ÉúÆ÷Ñ¡Ôñ£¬ÒªÊ¹ÓÃ  SREL0H:L ×ÔÐÐÉèÖÃ 
+  70   1           
+  71   1        SREL2H = (u8)(tmp>>8);        
+  72   1        SREL2L = (u8)tmp;
+  73   1        ES2 = 1;
+  74   1        EA = 1;
+  75   1      
+  76   1        uart[2].Tx_Num  = 0;
+  77   1        uart[2].Tx_H    = 0;
+  78   1        uart[2].Tx_F    = 0;  
+  79   1        uart[2].Rx_Num  = 0;
+  80   1        uart[2].Rx_T    = 0;
+  81   1        uart[2].Rx_F    = 0;
+  82   1        memset(&uart[2].Tx_Data,0,UART_SIZE);
+  83   1        memset(&uart[2].Rx_Data,0,UART_MAX_LEN);
+  84   1      }
+  85          void UART3_Init(u32 bdt)    //8N1 115200
+  86          {
+  87   1        u16 tmp;  
+  88   1        tmp=1024-FOSC/32/bdt;
+  89   1        
+  90   1        MUX_SEL|=0X20;
+  91   1        SetPinOut(GPIO_PORT_0,GPIO_PIN_6);
+  92   1        SetPinIn(GPIO_PORT_0,GPIO_PIN_7);
+  93   1        
+  94   1        SCON3 = 0X50;
+  95   1        SREL3H =(u8)(tmp>>8);
+  96   1        SREL3L =(u8)tmp;
+  97   1        IEN2 |= 1;
+  98   1        
+  99   1        uart[3].Tx_Num  = 0;
+ 100   1        uart[3].Tx_H    = 0;
+ 101   1        uart[3].Tx_F    = 0;  
+ 102   1        uart[3].Rx_Num  = 0;
+ 103   1        uart[3].Rx_T    = 0;
+ 104   1        uart[3].Rx_F    = 0;
+ 105   1        memset(&uart[3].Tx_Data,0,UART_SIZE);
+ 106   1        memset(&uart[3].Rx_Data,0,UART_MAX_LEN);
+ 107   1      }
+ 108          
+ 109          void UART4_Init(u32 bdt)     //8N1 115200
+ 110          {
+ 111   1        u16 tmp;
+ 112   1        SCON4T = 0X80;
+ 113   1        SCON4R = 0X80;
+ 114   1        tmp=FOSC/8/bdt;
+C51 COMPILER V9.57.0.0   UART                                                              03/05/2023 11:39:29 PAGE 3   
+
+ 115   1        BODE4_DIV_H = (u8)(tmp>>8);
+ 116   1        BODE4_DIV_L = (u8)tmp;
+ 117   1        
+ 118   1        IEN1 |= 0X0C;
+ 119   1        uart[4].Tx_Num  = 0;
+ 120   1        uart[4].Tx_H    = 0;
+ 121   1        uart[4].Tx_F    = 0;  
+ 122   1        uart[4].Rx_Num  = 0;
+ 123   1        uart[4].Rx_T    = 0;
+ 124   1        uart[4].Rx_F    = 0;
+ 125   1        memset(&uart[4].Tx_Data,0,UART_SIZE);
+ 126   1        memset(&uart[4].Rx_Data,0,UART_MAX_LEN);
+ 127   1      }
+ 128          void UART5_Init(u32 bdt)
+ 129          {
+ 130   1        u16 tmp;
+ 131   1        SCON5T = 0X80;
+ 132   1        SCON5R = 0X80;
+ 133   1          
+ 134   1        tmp=FOSC/8/bdt;
+ 135   1        BODE5_DIV_H = (u8)(tmp>>8);
+ 136   1        BODE5_DIV_L = (u8)tmp;;
+ 137   1        
+ 138   1        IEN1 |= 0X30;
+ 139   1        uart[5].Tx_Num  = 0;
+ 140   1        uart[5].Tx_H    = 0;
+ 141   1        uart[5].Tx_F    = 0;  
+ 142   1        uart[5].Rx_Num  = 0;
+ 143   1        uart[5].Rx_T    = 0;
+ 144   1        uart[5].Rx_F    = 0;
+ 145   1        memset(&uart[5].Tx_Data,0,UART_SIZE);
+ 146   1        memset(&uart[5].Rx_Data,0,UART_MAX_LEN);
+ 147   1      }
+ 148          void UART2_ISR_PC(void)    interrupt 4
+ 149          {
+ 150   1          EA = 0;             //ÖÐ¶Ï×Ü¿ØÖÆÎ» ¹Ø±Õ
+ 151   1          if(RI2)             //½ÓÊÕÖÐ¶Ï±êÖ¾Î» ¸ÃÎ»ÓÉÓ²¼þÖÃÎ» ,Èí¼þÇåÁã
+ 152   1          {   
+ 153   2              RI2 = 0; 
+ 154   2              uart[2].Rx_F    = 1;
+ 155   2              uart[2].Rx_Data[uart[2].Rx_Num] = SBUF2;
+ 156   2              uart[2].Rx_Num++;
+ 157   2              uart[2].Rx_Num %=UART_MAX_LEN; 
+ 158   2              uart[2].Rx_T = 3; 
+ 159   2          }
+ 160   1          if(TI2==1)                          //·¢ËÍÖÐ¶Ï±êÖ¾Î» ¸ÃÎ»ÓÉÓ²¼þÖÃÎ» ,Èí¼þÇåÁã
+ 161   1          {
+ 162   2              TI2=0;              
+ 163   2              if(uart[2].Tx_H != uart[2].Tx_Num)
+ 164   2              {
+ 165   3                SBUF2 = uart[2].Tx_Data[uart[2].Tx_Num];  
+ 166   3                uart[2].Tx_Num++;
+ 167   3                uart[2].Tx_Num %=UART_SIZE;
+ 168   3              }
+ 169   2              else
+ 170   2              {
+ 171   3                uart[2].Tx_F=0; 
+ 172   3              }
+ 173   2          }
+ 174   1          EA = 1;                           //ÖÐ¶Ï×Ü¿ØÖÆÎ» ¹Ø±Õ
+ 175   1      }
+ 176          /*·¢ËÍÒ»¸ö×Ö½Ú*/
+C51 COMPILER V9.57.0.0   UART                                                              03/05/2023 11:39:29 PAGE 4   
+
+ 177          void UART2_Sendbyte(u8 dat)
+ 178          {       
+ 179   1        while(uart[2].Tx_F==1);        //  uart2_busy Èç¹ûÎª1¾ÍµÈ´ý£¬²»Îª1ÔòÖ´ÐÐÏÂÃæ
+ 180   1        uart[2].Tx_F=1;                 //
+ 181   1        SBUF2 = dat;        
+ 182   1      }
+ 183          
+ 184          
+ 185          char putchar(u8 chr)
+ 186          {
+ 187   1        UART2_Sendbyte(chr);
+ 188   1        return 0;
+ 189   1      }
+ 190          
+ 191          void uart3_Isr() interrupt 16
+ 192          {
+ 193   1        EA = 0;
+ 194   1        if(SCON3&0x01)
+ 195   1        {
+ 196   2          SCON3 = 0x50;
+ 197   2          SCON3 &= 0xFE;
+ 198   2          uart[3].Rx_F = 1; 
+ 199   2          uart[3].Rx_T = 3; 
+ 200   2          uart[3].Rx_Data[uart[3].Rx_Num] = SBUF3;
+ 201   2          uart[3].Rx_Num++;
+ 202   2          uart[3].Rx_Num %=UART_MAX_LEN; 
+ 203   2        }
+ 204   1        if(SCON3&0x02)
+ 205   1        {
+ 206   2          SCON3 = 0x50;
+ 207   2          SCON3 &= 0xFD;
+ 208   2          if(uart[3].Tx_H != uart[3].Tx_Num)
+ 209   2          {
+ 210   3            SBUF3 = uart[3].Tx_Data[uart[3].Tx_Num];  
+ 211   3            uart[3].Tx_Num++;
+ 212   3            uart[3].Tx_Num %=UART_SIZE;
+ 213   3          }
+ 214   2        else
+ 215   2        {
+ 216   3          uart[3].Tx_F=0;
+ 217   3        }
+ 218   2        }
+ 219   1        EA = 1;
+ 220   1      }
+ 221          
+ 222          void UART3_Sendbyte(u8 dat)
+ 223          {       
+ 224   1        while(uart[3].Tx_F==1);        //  uart2_busy Èç¹ûÎª1¾ÍµÈ´ý£¬²»Îª1ÔòÖ´ÐÐÏÂÃæ
+ 225   1        uart[3].Tx_F=1;                 //
+ 226   1        SBUF3 = dat;        
+ 227   1      }
+ 228          
+ 229          
+ 230          
+ 231          void uart4t_Isr() interrupt 10
+ 232          {
+ 233   1        EA = 0;
+ 234   1        SCON4T &= 0XFE;           
+ 235   1        if(uart[4].Tx_H != uart[4].Tx_Num)
+ 236   1        {
+ 237   2          SBUF4_TX = uart[4].Tx_Data[uart[4].Tx_Num]; 
+ 238   2          uart[4].Tx_Num++;
+C51 COMPILER V9.57.0.0   UART                                                              03/05/2023 11:39:29 PAGE 5   
+
+ 239   2          uart[4].Tx_Num %=UART_SIZE;
+ 240   2        }
+ 241   1        else
+ 242   1        {
+ 243   2          uart[4].Tx_F=0;
+ 244   2        }
+ 245   1        EA = 1;
+ 246   1      }
+ 247          void uart4r_Isr() interrupt 11
+ 248          {
+ 249   1        EA = 0;
+ 250   1        SCON4R &= 0XFE;
+ 251   1        uart[4].Rx_F= 1;
+ 252   1        uart[4].Rx_T = 3; 
+ 253   1        uart[4].Rx_Data[uart[4].Rx_Num] = SBUF4_RX;
+ 254   1        uart[4].Rx_Num++;
+ 255   1        uart[4].Rx_Num %=UART_MAX_LEN;
+ 256   1        EA = 1;
+ 257   1      }
+ 258          
+ 259          void UART4_Sendbyte(u8 dat)
+ 260          {       
+ 261   1        while(uart[4].Tx_F==1);        //  uart2_busy Èç¹ûÎª1¾ÍµÈ´ý£¬²»Îª1ÔòÖ´ÐÐÏÂÃæ
+ 262   1        uart[4].Tx_F=1;                 //
+ 263   1        SBUF4_TX = dat;  
+ 264   1      }
+ 265          
+ 266          void uart5t_Isr() interrupt 12
+ 267          {
+ 268   1        EA = 0;
+ 269   1        SCON5T &= 0XFE;
+ 270   1        if(uart[5].Tx_H != uart[5].Tx_Num)
+ 271   1        {
+ 272   2          SBUF5_TX = uart[5].Tx_Data[uart[5].Tx_Num]; 
+ 273   2          uart[5].Tx_Num++;
+ 274   2          uart[5].Tx_Num %=UART_SIZE;
+ 275   2        }
+ 276   1        else
+ 277   1        {
+ 278   2          uart[5].Tx_F=0;
+ 279   2        }
+ 280   1        EA = 1;
+ 281   1      }
+ 282          void uart5r_Isr() interrupt 13
+ 283          {
+ 284   1        EA = 0;
+ 285   1        SCON5R &= 0XFE;
+ 286   1        uart[5].Rx_F= 1;
+ 287   1        uart[5].Rx_T = 3; 
+ 288   1        uart[5].Rx_Data[uart[5].Rx_Num] = SBUF5_RX;
+ 289   1        uart[5].Rx_Num++;
+ 290   1        uart[5].Rx_Num %=UART_MAX_LEN;
+ 291   1        EA = 1;
+ 292   1      }
+ 293          
+ 294          
+ 295          
+ 296          /* ·¢ËÍÍ¨Ñ¶ÏûÏ¢ */
+ 297          void Uatr_Send_CMD(u16 VP,u16 VP_buff)
+ 298          {
+ 299   1        u8 i,str;
+ 300   1        str=2;
+C51 COMPILER V9.57.0.0   UART                                                              03/05/2023 11:39:29 PAGE 6   
+
+ 301   1        UART2_message[4]=(VP&0xFF00)>>8;
+ 302   1        UART2_message[5]=VP&0xFF;
+ 303   1        UART2_message[6]=(VP_buff&0xFF00)>>8;
+ 304   1        UART2_message[7]=VP_buff&0xFF;
+ 305   1        
+ 306   1        for(i=0;i<8;i++)
+ 307   1        {
+ 308   2          uart[str].Tx_Data[uart[str].Tx_H] = UART2_message[i];
+ 309   2          uart[str].Tx_H++;
+ 310   2          uart[str].Tx_H %=UART_SIZE;
+ 311   2        }
+ 312   1        if(uart[str].Tx_F == 0)
+ 313   1        {
+ 314   2          uart[str].Tx_F = 1;
+ 315   2          SBUF2 = uart[str].Tx_Data[uart[str].Tx_Num];
+ 316   2          uart[str].Tx_Num++;
+ 317   2          uart[str].Tx_Num %=UART_SIZE;
+ 318   2        }
+ 319   1      }
+ 320          
+ 321          /*´®¿Ú2-5·¢ËÍÊý¾Ý ,num */
+ 322          void Uatr_Send_Data(u8 st,const u8 *buf,u8 len)
+ 323          {
+ 324   1        u8 i;
+ 325   1        for(i=0;i<len;i++)
+ 326   1        {
+ 327   2          uart[st].Tx_Data[uart[st].Tx_H] = *buf++;
+ 328   2          uart[st].Tx_H++;
+ 329   2          uart[st].Tx_H %=UART_SIZE;
+ 330   2        }
+ 331   1      
+ 332   1        switch(st)
+ 333   1        {
+ 334   2          case 2:
+ 335   2            if(uart[2].Tx_F == 0)
+ 336   2            {
+ 337   3              uart[2].Tx_F = 1;
+ 338   3              SBUF2 = uart[2].Tx_Data[uart[2].Tx_Num];
+ 339   3              uart[2].Tx_Num++;
+ 340   3              uart[2].Tx_Num %=UART_SIZE;
+ 341   3            }
+ 342   2            break;
+ 343   2          case 3:
+ 344   2            if(uart[3].Tx_F == 0)
+ 345   2            {
+ 346   3              uart[3].Tx_F = 1;
+ 347   3              SBUF3 = uart[3].Tx_Data[uart[3].Tx_Num];
+ 348   3              uart[3].Tx_Num++;
+ 349   3              uart[3].Tx_Num %=UART_SIZE;
+ 350   3            }
+ 351   2            break;
+ 352   2          case 4:
+ 353   2            if(uart[4].Tx_F == 0)
+ 354   2            {
+ 355   3      
+ 356   3              uart[4].Tx_F = 1;
+ 357   3              SBUF4_TX = uart[4].Tx_Data[uart[4].Tx_Num];
+ 358   3              uart[4].Tx_Num++;
+ 359   3              uart[4].Tx_Num %=UART_SIZE;
+ 360   3            }
+ 361   2            break;
+ 362   2          case 5:
+C51 COMPILER V9.57.0.0   UART                                                              03/05/2023 11:39:29 PAGE 7   
+
+ 363   2            if(uart[5].Tx_F == 0)
+ 364   2            {
+ 365   3              uart[5].Tx_F = 1;
+ 366   3              SBUF5_TX = uart[5].Tx_Data[uart[5].Tx_Num];
+ 367   3              uart[5].Tx_Num++;
+ 368   3              uart[5].Tx_Num %=UART_SIZE;
+ 369   3            }
+ 370   2            break;
+ 371   2          default:
+ 372   2            break;
+ 373   2        }
+ 374   1      
+ 375   1      }
+ 376          
+ 377          
+ 378          #if(Type_Communication==1)  
+ 379          /* Ê¹ÓÃ¶ÓÁÐ ½âÎö8283Ö¸Áî*/
+ 380          void Describe_8283(u8 st)
+ 381          {
+ 382   1          u8 N=0; bit Flog=1;
+ 383   1            while(Flog)
+ 384   1            {           
+ 385   2              if((uart[st].Rx_Data[N]==0x5a)&&(uart[st].Rx_Data[N+1]==0xa5))   //5A A5 0007 82 1000 0001 0002
+ 386   2                {  
+ 387   3                    if(uart[st].Rx_Data[N+3]==0x82)
+ 388   3                     {      
+ 389   4                        u8 i=0;
+ 390   4                        for(i=0;i<((uart[st].Rx_Data[N+2]-3)/2);i++)
+ 391   4                       {                                                                  
+ 392   5                          WriteDgus(((uart[st].Rx_Data[N+4]<<8)+uart[st].Rx_Data[N+5]+i),((uart[st].Rx_Data[N+6+2*i]<<8)+u
+             -art[st].Rx_Data[N+7+2*i]));
+ 393   5                       }
+ 394   4                          Uatr_Send_Data(st,uart_txAck,6);
+ 395   4                     }                  
+ 396   3                    else if(uart[st].Rx_Data[N+3]==0x83)
+ 397   3                     {                     
+ 398   4                        u8 i=0;u16 Temp=0;
+ 399   4                        for(i=0;i<uart[st].Rx_Data[N+6];i++)
+ 400   4                        {
+ 401   5                            Temp=ReadDgus(((uart[st].Rx_Data[N+4]<<8)+uart[st].Rx_Data[N+5]+i));
+ 402   5                           uart_txBuf[7+2*i]=(u8)(Temp>>8);
+ 403   5                           uart_txBuf[8+2*i]=(u8)(Temp);
+ 404   5                        }
+ 405   4                          uart_txBuf[4] = uart[st].Rx_Data[N+4];
+ 406   4                          uart_txBuf[5] = uart[st].Rx_Data[N+5];  
+ 407   4                          uart_txBuf[6] = uart[st].Rx_Data[N+6];  
+ 408   4                          uart_txBuf[2] = 2*uart[st].Rx_Data[N+6]+4;
+ 409   4                          Uatr_Send_Data(st,uart_txBuf,uart_txBuf[2]+3);
+ 410   4                     }
+ 411   3                    N= N+(uart[st].Rx_Data[N+2]+3);          
+ 412   3                }
+ 413   2                else
+ 414   2                {   memset(uart[st].Rx_Data,0,N);       //´¦ÀíÍêÇé¿ö»º´æÇø
+ 415   3                    Flog=0;
+ 416   3                }   
+ 417   2            }
+ 418   1      }
+ 419          #elif(Type_Communication==2)  
+              void Describe_Modbus(u8 st)
+              {
+                u8 cmd;
+                u16 modbus_data,modbus_len,modbus_crc;
+C51 COMPILER V9.57.0.0   UART                                                              03/05/2023 11:39:29 PAGE 8   
+
+                  if(((uart[st].Rx_Data[0]==0x01))&&(uart[st].Rx_Num >=uart[st].Rx_Data[2]+5)&&(uart[st].Rx_Num >=7))
+                        {       
+                            modbus_len=uart[st].Rx_Data[2]+5;
+                            modbus_crc=crc16(uart[st].Rx_Data,modbus_len-2);      //crcÐ£Ñé
+                            if(modbus_crc==((uart[st].Rx_Data[modbus_len-1]<<8)|(uart[st].Rx_Data[modbus_len-2])))
+                            {
+                              uart[st].Rx_S=0x5A;
+                            }
+                            else
+                            {
+                              uart[st].Rx_S=0;
+                              uart[st].Rx_Num=0;
+                            }
+                          }
+                        else
+                        {
+                          memset(uart[st].Rx_Data,0,uart[st].Rx_Num);
+                          uart[st].Rx_S=0;
+                          uart[st].Rx_Num=0;
+                        }
+                if(uart[st].Rx_S==0x5A)
+                {     
+                    cmd=uart[st].Rx_Data[1];
+                    switch(cmd)
+                    {   
+                      
+                      case  0x03:   //    
+                        if(uart[st].Rx_Data[0] == 0x01)
+                        {
+                          write_dgus_vp(0x10A0,(u8*)&uart[st].Rx_Data[3],16);         
+                        } 
+                    
+                        break;
+                      default:
+                        break;
+                    }
+                    memset(uart[st].Rx_Data,0,uart[st].Rx_Num);
+                    uart[st].Rx_S=0;
+                    uart[st].Rx_Num=0;      
+                  }
+              } 
+              #endif  
+ 466          
+ 467          void Communication_CMD(u8 st)
+ 468          {
+ 469   1        if((uart[st].Rx_F==1 )&&(uart[st].Rx_T==0))
+ 470   1            {       
+ 471   2              
+ 472   2      #if(Type_Communication==1)    
+ 473   2              Describe_8283(st);
+ 474   2      #elif(Type_Communication==2)    
+                      Describe_Modbus(st);
+              #endif          
+ 477   2              uart[st].Rx_F=0;
+ 478   2              uart[st].Rx_Num=0;
+ 479   2            } 
+ 480   1      }
+ 481          /*****************************************************************************
+ 482          ´®¿Ú×ÜÅäÖÃ*/
+ 483          void InitUart(void)
+ 484          {
+ 485   1          UART2_Init(115200);
+C51 COMPILER V9.57.0.0   UART                                                              03/05/2023 11:39:29 PAGE 9   
+
+ 486   1          UART3_Init(1612800);
+ 487   1      //    UART4_Init(115200);
+ 488   1      //    UART5_Init(115200);
+ 489   1      }
+ 490          
+ 491          
+ 492          
+ 493          
+ 494          
+ 495          
+ 496          
+ 497          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   3377    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   7999      63
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----       1
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

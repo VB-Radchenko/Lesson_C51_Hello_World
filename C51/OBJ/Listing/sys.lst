@@ -1,0 +1,308 @@
+C51 COMPILER V9.57.0.0   SYS                                                               03/05/2023 11:39:28 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE SYS
+OBJECT MODULE PLACED IN ..\OBJ\sys.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE sys.c LARGE OMF2 OPTIMIZE(3,SIZE) BROWSE INCDIR(..\USER;..\FUNC_HANDLER;
+                    -..\GUI_APP;..\HANDWARE\ADC;..\HANDWARE\GPIO;..\HANDWARE\PWM;..\HANDWARE\TIMER;..\HANDWARE\UART) DEBUG PRINT(..\OBJ\Listi
+                    -ng\sys.lst) TABS(2) OBJECT(..\OBJ\sys.obj)
+
+line level    source
+
+   1          #include "sys.h"
+   2          #include "UART.h"
+   3          
+   4          static idata u16 delay_tick = 0; 
+   5          
+   6          
+   7          
+   8          void SysDelayMs(u16 ms)
+   9          {
+  10   1        u16 i,j;
+  11   1        for(i=0;i<ms;i++)
+  12   1            for(j=0;j<3000;j++);    
+  13   1      }
+  14          
+  15          
+  16          void SysDelayUs(u16 us)
+  17          {
+  18   1        u16 i,j;
+  19   1        for(i=0;i<us;i++)
+  20   1            for(j=0;j<5;j++);    
+  21   1      }
+  22          
+  23          
+  24          
+  25          
+  26          
+  27          void ReadDgusVp(u16 Addr,u8* pBuf,u8 Len16)
+  28          {
+  29   1          u8 len32;
+  30   1        
+  31   1      EA = 0;             
+  32   1          ADR_M = Addr >> 9;  //½«¸ß°ËÎ»¸³Öµ¸øDGUSÖÐ¼ä¼Ä´æÆ÷£¬²¢ ³ýÒÔ2 ×ª»¯Îª32½øÖÆ£¬ËùÒÔ×óÒÆ 8+1Î»
+  33   1          ADR_L = Addr >> 1;  //³ýÒÔ2 ×ª»¯Îª32½øÖÆ
+  34   1          ADR_INC = 1;                 //DGUS  OS´æ´¢Æ÷µØÖ·ÔÚ¶ÁÐ´ºó×Ô¶¯¼Ó1
+  35   1          RAMMODE=0xAF;               //Æô¶¯¶ÁÄ£Ê½
+  36   1          while(!APP_ACK);      //µÈ´ý
+  37   1          if(Addr%2)       //Ê×µØÖ·ÓÐÆ«ÒÆ£¬ÐÞÕý
+  38   1          {
+  39   2            APP_EN=1;
+  40   2            while(APP_EN); 
+  41   2            *pBuf++=DATA1;
+  42   2            *pBuf++=DATA0;              
+  43   2            Len16--;
+  44   2          }
+  45   1          len32=Len16>>1;
+  46   1          while(len32--)
+  47   1          {
+  48   2            APP_EN=1;
+  49   2            while(APP_EN);       //¶ÁÐ´Ö´ÐÐ½áÊø 
+  50   2            *pBuf++=DATA3;
+  51   2            *pBuf++=DATA2;
+  52   2            *pBuf++=DATA1;
+  53   2            *pBuf++=DATA0;                          
+C51 COMPILER V9.57.0.0   SYS                                                               03/05/2023 11:39:28 PAGE 2   
+
+  54   2          }   
+  55   1          if(Len16%2)
+  56   1          {          
+  57   2            APP_EN=1;
+  58   2            while(APP_EN);       //¶ÁÐ´Ö´ÐÐ½áÊø
+  59   2            *pBuf++=DATA3;
+  60   2            *pBuf++=DATA2;              
+  61   2          } 
+  62   1          RAMMODE=0x00;           //¶ÁÐ´Íê³ÉºóRAMMODE±ØÐëÖÃÁã
+  63   1      EA = 1;   
+  64   1      }
+  65          
+  66          
+  67          
+  68          void WriteDgusVp(u16 Addr,u8* pBuf,u8 Len16)
+  69          {
+  70   1          u8 len32;
+  71   1      EA = 0;   
+  72   1          ADR_M = Addr >> 9;  //½«¸ß°ËÎ»¸³Öµ¸øDGUSÖÐ¼ä¼Ä´æÆ÷£¬²¢ ³ýÒÔ2 ×ª»¯Îª32½øÖÆ£¬ËùÒÔ×óÒÆ 8+1Î»
+  73   1          ADR_L = Addr >> 1;  //³ýÒÔ2 ×ª»¯Îª32½øÖÆ
+  74   1          ADR_INC = 1;                 //DGUS  OS´æ´¢Æ÷µØÖ·ÔÚ¶ÁÐ´ºó×Ô¶¯¼Ó1
+  75   1          RAMMODE = 0x8F;   ////Ð´²Ù×÷
+  76   1          while(!APP_ACK);      //µÈ´ý
+  77   1          if(Addr%2)  //ÅÐ¶ÏÊÇ·ñÎªµ¥Êý
+  78   1          {
+  79   2            ADR_INC=0;      //¶ÁÐ´ºó£¬µØÖ·²»¼Ó1
+  80   2            RAMMODE=0xAF;   //¶Á±äÁ¿¼Ä´æÆ÷
+  81   2            APP_EN=1;       //Æô¶¯Ò»´Î¶ÁÐ´
+  82   2            while(APP_EN);       //¶ÁÐ´Ö´ÐÐ½áÊø
+  83   2            ADR_INC=0x01; 
+  84   2            RAMMODE=0x8F;     
+  85   2            DATA1=*pBuf++;
+  86   2            DATA0=*pBuf++;
+  87   2            APP_EN=1;
+  88   2            Len16--;
+  89   2          }
+  90   1          len32=Len16>>1;
+  91   1          while(len32--)
+  92   1          {       
+  93   2            DATA3=*pBuf++;
+  94   2            DATA2=*pBuf++;
+  95   2            DATA1=*pBuf++;
+  96   2            DATA0=*pBuf++;
+  97   2            APP_EN=1;
+  98   2          }
+  99   1          if(Len16%2)
+ 100   1          {
+ 101   2            ADR_INC=0;
+ 102   2            RAMMODE=0xAF;
+ 103   2            APP_EN=1;                //Ôö¼ÓÒ»¸ö¶Á¹ý³Ì£¬ÒÔÃâÐ´µ¥×ÖÊ±»á½«ÁíÒ»¸öµ¥×ÖÐ´0
+ 104   2            while(APP_EN);       //¶ÁÐ´Ö´ÐÐ½áÊø
+ 105   2            ADR_INC=0x01;
+ 106   2            RAMMODE=0x8F;         
+ 107   2            DATA3=*pBuf++;
+ 108   2            DATA2=*pBuf++;
+ 109   2            APP_EN=1;
+ 110   2          }
+ 111   1          RAMMODE=0x00;       //¶ÁÐ´Íê³ÉºóRAMMODE±ØÐëÖÃÁã 
+ 112   1      EA = 1; 
+ 113   1      }  
+ 114          
+ 115          
+C51 COMPILER V9.57.0.0   SYS                                                               03/05/2023 11:39:28 PAGE 3   
+
+ 116          
+ 117          void sys_timer2_isr() interrupt 5
+ 118          {
+ 119   1        TF2=0;
+ 120   1        if(delay_tick)
+ 121   1          delay_tick--;
+ 122   1      }
+ 123          
+ 124          
+ 125          
+ 126          //==============================================================================
+ 127          //--------------------------------FUNCTIONS-------------------------------------
+ 128          //==============================================================================
+ 129          
+ 130           union
+ 131          {
+ 132             u8       byte[4];
+ 133             u16      word[2];
+ 134             u32      words;
+ 135          }data buf;
+ 136          
+ 137          u16 code union_0_buff = 0;
+ 138          u16 code union_1_buff = 1;
+ 139          
+ 140          u16 GetPageID()
+ 141          {
+ 142   1          u16  nPage;
+ 143   1          ReadDgusVp(PIC_NOW,(u8*)(&nPage),1);  
+ 144   1          return nPage;
+ 145   1      }
+ 146          
+ 147          void PageChange(u16 PageID)
+ 148          {
+ 149   1        u8 buf[4];
+ 150   1        buf[0] = 0x5a;
+ 151   1        buf[1] = 0x01;
+ 152   1        buf[2] = (u8)(PageID >> 8);
+ 153   1        buf[3] = (u8)PageID;
+ 154   1        WriteDgusVp(PIC_SET,buf,2);
+ 155   1      }
+ 156          
+ 157          /****************************************************************************/
+ 158          u16 ReadDgus(u16 Dgus_Addr)
+ 159          {         
+ 160   1        u16 R_Dgus=0;
+ 161   1      EA = 0;
+ 162   1            ADR_H = 0x00;
+ 163   1            ADR_M = (u8)((Dgus_Addr/2)>>8);
+ 164   1            ADR_L = (u8)(Dgus_Addr/2);
+ 165   1            RAMMODE = 0xAF;   //¶Á²Ù×÷
+ 166   1            while(!APP_ACK);
+ 167   1            APP_EN = 1;
+ 168   1            while(APP_EN);
+ 169   1            if(Dgus_Addr%2) R_Dgus = (DATA1<<8)+DATA0; 
+ 170   1            else   R_Dgus=(DATA3<<8)+DATA2;
+ 171   1            RAMMODE = 0;
+ 172   1      EA = 1;
+ 173   1            return   R_Dgus;    
+ 174   1      }
+ 175          /****************************************************************************/
+ 176          void WriteDgus(u16 Dgus_Addr,u16 Val)
+ 177          {      
+C51 COMPILER V9.57.0.0   SYS                                                               03/05/2023 11:39:28 PAGE 4   
+
+ 178   1      EA = 0;
+ 179   1            ADR_H = 0x00;
+ 180   1            ADR_M = (u8)((Dgus_Addr/2)>>8);
+ 181   1            ADR_L = (u8)(Dgus_Addr/2);
+ 182   1            RAMMODE = 0xAF;   //¶Á²Ù×÷
+ 183   1            while(!APP_ACK);
+ 184   1            APP_EN = 1;
+ 185   1            while(APP_EN);
+ 186   1            RAMMODE = 0;
+ 187   1              ADR_M = (u8)((Dgus_Addr/2)>>8);
+ 188   1            ADR_L = (u8)(Dgus_Addr/2);
+ 189   1            RAMMODE = 0x8F;   //Ð´²Ù×÷
+ 190   1              while(!APP_ACK);
+ 191   1            if(Dgus_Addr%2){DATA1=(u8)(Val>>8); DATA0=(u8)(Val); }
+ 192   1            else { DATA3 =(u8)(Val>>8); DATA2 =(u8)(Val);}
+ 193   1              APP_EN = 1;
+ 194   1            while(APP_EN);
+ 195   1            RAMMODE = 0;
+ 196   1      EA = 1;
+ 197   1      }
+ 198          
+ 199          
+ 200          //==============================================================================
+ 201          //---------------------------------- INIT---------------------------------------
+ 202          //==============================================================================
+ 203          
+ 204          void SysTimer2Init()
+ 205          {
+ 206   1        T2CON = 0x70;
+ 207   1        TH2 = 0x00;
+ 208   1        TL2 = 0x00;
+ 209   1        TRL2H = 0xBC; 
+ 210   1        TRL2L = 0xCD;       
+ 211   1        IEN0 |= 0x20; 
+ 212   1        TR2 = 0x01;
+ 213   1        EA = 1;
+ 214   1      }
+ 215          
+ 216          void InitCFG(void)
+ 217          {
+ 218   1          CKCON=0x00;   
+ 219   1          T2CON=0x70;   
+ 220   1          DPC=0x00;       
+ 221   1          PAGESEL=0x01;     //64KB 
+ 222   1          D_PAGESEL=0x02;   //DATA RAM  0x8000-0xFFFF
+ 223   1          MUX_SEL=0x60;     //UART2,UART3
+ 224   1          PORTDRV=0x01;     //+/-8mA
+ 225   1          RAMMODE=0x00;     //DGUS 
+ 226   1      }
+ 227          void InitInt(void)
+ 228          {
+ 229   1          IEN0=0x00;        //
+ 230   1          IEN1=0x00;        //
+ 231   1          IEN2=0x00;        //
+ 232   1          IP0=0x00;         // 
+ 233   1          IP1=0x00;         //  
+ 234   1      }
+ 235          
+ 236          //GPIO  
+ 237          void InitGPIO(void)
+ 238          {
+ 239   1        PORTDRV=0x01;         //+/-8mA    
+C51 COMPILER V9.57.0.0   SYS                                                               03/05/2023 11:39:28 PAGE 5   
+
+ 240   1        P0         = 0x00;    //·             
+ 241   1        P1         = 0x00;
+ 242   1        P2         = 0x00;
+ 243   1        P3         = 0x00;
+ 244   1      }
+ 245          void EX0_ISR_PC(void)    interrupt 0
+ 246          {
+ 247   1          EA=0;
+ 248   1          EA=1;
+ 249   1      }
+ 250          void EX1_ISR_PC(void)    interrupt 2
+ 251          {
+ 252   1          EA=0;
+ 253   1          EA=1;
+ 254   1      }
+ 255          void InitCPU(void)
+ 256          {
+ 257   1        EA=0;
+ 258   1        InitCFG();      
+ 259   1        InitInt();
+ 260   1        InitGPIO();
+ 261   1        InitUart();
+ 262   1        SysTimer2Init();
+ 263   1        //InitTimer();
+ 264   1      
+ 265   1        EA=1;
+ 266   1      }
+ 267          
+ 268          
+ 269          //==============================================================================
+ 270          //---------------------------------END FILE-------------------------------------
+ 271          //==============================================================================
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1160    ----
+   CONSTANT SIZE    =      4    ----
+   XDATA SIZE       =   ----      42
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      4    ----
+   IDATA SIZE       =      2    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

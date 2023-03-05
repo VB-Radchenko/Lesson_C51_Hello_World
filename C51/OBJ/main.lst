@@ -1,0 +1,176 @@
+C51 COMPILER V9.57.0.0   MAIN                                                              02/24/2023 21:51:30 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN ..\OBJ\out\main.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE main.c LARGE OMF2 OPTIMIZE(3,SIZE) BROWSE INCDIR(..\USER;..\FUNC_HANDLER
+                    -;..\GUI_APP;..\HANDWARE\ADC;..\HANDWARE\GPIO;..\HANDWARE\PWM;..\HANDWARE\TIMER;..\HANDWARE\UART) DEBUG PRINT(..\OBJ\main
+                    -.lst) TABS(2) OBJECT(..\OBJ\out\main.obj)
+
+line level    source
+
+   1          
+   2          //==============================================================================
+   3          //---------------------------------Includes-------------------------------------
+   4          //==============================================================================
+   5          #include "sys.h"
+   6          #include "ADC.h"
+   7          #include "TIMER.h"
+   8          #include "PWM.h"
+   9          #include "GPIO.h"
+  10          
+  11          
+  12          //==============================================================================
+  13          //---------------------------------Defines--------------------------------------
+  14          //==============================================================================
+  15          #define ADR_CNT         0x5000
+  16          #define ADR_ADC         0x5010
+  17          #define ADR_LED         0x5020
+  18          #define ADR_BUTTON      0x5030
+  19          #define ADR_PWM         0x5040
+  20          
+  21          
+  22          sbit GPIO_LED = P1^0;
+  23          sbit GPIO_BUTTON = P1^1; 
+  24          
+  25          #define PWM_FREQ_32KHZ    255
+  26          
+  27          
+  28          #define T0_PERIOD_1MS   0xBCCD    //1ms timing period
+  29          //==============================================================================
+  30          //--------------------------------Variables-------------------------------------
+  31          //==============================================================================
+  32          
+  33          xdata u16 CounterVar = 0;
+  34          
+  35          u16 ButState = 0;
+  36          u16 ReadU16 = 0;
+  37          
+  38          //==============================================================================
+  39          //--------------------------------PROTOTYPE-------------------------------------
+  40          //==============================================================================
+  41          
+  42          //==============================================================================
+  43          //----------------------------------- INT---------------------------------------
+  44          //==============================================================================
+  45          void timer0_isr() interrupt 1
+  46          {
+  47   1        static idata u16 CntTimer = 0;
+  48   1        //Reload period value
+  49   1        TH0 = (u8)(T0_PERIOD_1MS>>8); 
+  50   1        TL0 = (u8)T0_PERIOD_1MS;
+  51   1        CntTimer++;
+  52   1        if(CntTimer==1000)//1s timing period is up
+  53   1        {
+C51 COMPILER V9.57.0.0   MAIN                                                              02/24/2023 21:51:30 PAGE 2   
+
+  54   2          CntTimer = 0;
+  55   2          CounterVar++;//Perform an operation that increments by 1
+  56   2        }
+  57   1        
+  58   1      }
+  59          //==============================================================================
+  60          //---------------------------------- INIT---------------------------------------
+  61          //==============================================================================
+  62          
+  63          
+  64          void MainInit()
+  65          {
+  66   1        sys_init();   //System initialization
+  67   1        GpioInit();   //GPIO pin initialization
+  68   1        TimerInit();  //Timer initialization
+  69   1      
+  70   1        PwmInit(PWM_FREQ_32KHZ);
+  71   1        CounterVar = 0;
+  72   1      }
+  73          
+  74          
+  75          
+  76          //==============================================================================
+  77          //--------------------------------FUNCTIONS-------------------------------------
+  78          //==============================================================================
+  79          void GpioProcess()
+  80          {
+  81   1        ReadU16 = 0;
+  82   1        sys_read_vp(ADR_LED,(u8*)&ReadU16,1);
+  83   1        ButState = GPIO_BUTTON;
+  84   1        
+  85   1        if (ReadU16 == 0)
+  86   1        {
+  87   2          GPIO_LED = 1;
+  88   2        }
+  89   1        else
+  90   1        {
+  91   2          GPIO_LED = 0;
+  92   2        }
+  93   1        
+  94   1        if (ButState != 0)
+  95   1        {
+  96   2          u16 writeVar = 1;
+  97   2          sys_write_vp(ADR_BUTTON,(u8*)&writeVar,1);
+  98   2        }
+  99   1        else
+ 100   1        {
+ 101   2          u16 writeVar = 0;
+ 102   2          sys_write_vp(ADR_BUTTON,(u8*)&writeVar,1);
+ 103   2          
+ 104   2        }
+ 105   1      }
+ 106          
+ 107          void AdcProcess()
+ 108          {
+ 109   1        u16 AdcData =  AdcReadAvg(1,10);
+ 110   1        sys_write_vp(ADR_ADC,(u8*)&AdcData,1);
+ 111   1      }
+ 112          
+ 113          void PwmProcess()
+ 114          {
+ 115   1        sys_read_vp(ADR_PWM,(u8*)&ReadU16,1);
+C51 COMPILER V9.57.0.0   MAIN                                                              02/24/2023 21:51:30 PAGE 3   
+
+ 116   1        PwmSetDuty(ReadU16);
+ 117   1      }
+ 118          
+ 119          void CounterProcess()
+ 120          {
+ 121   1        sys_write_vp(ADR_CNT,(u8*)&CounterVar,1);
+ 122   1      }
+ 123          //==============================================================================
+ 124          //-----------------------------------MAIN---------------------------------------
+ 125          //==============================================================================
+ 126          void main(void)
+ 127          {   
+ 128   1        
+ 129   1        MainInit();
+ 130   1        PwmSetDuty(50);
+ 131   1        while(1)
+ 132   1        { 
+ 133   2          GpioProcess();  
+ 134   2          AdcProcess(); 
+ 135   2          PwmProcess(); 
+ 136   2          CounterProcess();   
+ 137   2        }
+ 138   1      }
+ 139          
+ 140          
+ 141          //==============================================================================
+ 142          //---------------------------------END FILE-------------------------------------
+ 143          //==============================================================================
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    342    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      6       4
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =      2    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
